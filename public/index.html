@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule Engine</title>
+    <!-- <script src="../controllers/ruleController.js"></script>/ -->
+</head>
+<body>
+    <h1>Rule Engine Application</h1>
+
+    <h2>Create Rule</h2>
+    <form id="create-rule-form">
+        <label for="ruleName">Rule Name:</label>
+        <input type="text" id="ruleName" name="ruleName" required>
+        <label for="ruleString">Rule:</label>
+        <input type="text" id="ruleString" name="ruleString" required>
+        <button type="submit">Create Rule</button>
+    </form>
+    <!-- <div id="combined-rules-tree"></div> -->
+    <pre id="create-rule-result"></pre>
+
+    <h2>Combine Rules</h2>
+    <form id="combine-rules-form">
+        <h3>Enter Rules to Combine:</h3>
+        <div id="rules-inputs">
+            <div>
+                <label for="combine-rule">Rule 1:</label>
+                <input type="text" id="combine-rule1" name="rule1" required>
+                <select id="operator1" name="operator1">
+                    <option value="AND">AND</option>
+                    <option value="OR">OR</option>
+                </select>
+            </div>
+        </div>
+        <button type="button" id="add-rule">Add Another Rule</button>
+        <button type="submit">Combine Rules</button>
+    </form>
+    <pre id="combine-rules-result"></pre>
+
+    <h2>Evaluate Rule</h2>
+    <form id="evaluate-rule-form">
+        <label for="evaluate-ast">Rule Name:</label>
+        <textarea id="evaluate-ast" name="ast" required></textarea>
+        <label for="evaluate-data">Data JSON:</label>
+        <textarea id="evaluate-data" name="data" required></textarea>
+        <button type="submit">Evaluate Rule</button>
+    </form>
+    <pre id="evaluate-rule-result"></pre>
+
+    <script>
+        function generateTreeHTML(node, prefix = '', isLeft = true) {
+            if (!node) return '';
+            let treeHTML = '';
+            treeHTML += prefix + (isLeft ? "├── " : "└── ") + (node.type === 'operator' ? node.operator : `${node.key} ${node.operator} ${node.value}`) + '<br>';
+            if (node.left) treeHTML += generateTreeHTML(node.left, prefix + (isLeft ? "│   " : "    "), true);
+            if (node.right) treeHTML += generateTreeHTML(node.right, prefix + (isLeft ? "│   " : "    "), false);
+            return treeHTML;
+        }
+        function displayTree(tree) {
+            const treeHTML = generateTreeHTML(tree);
+            document.getElementById('combined-rules-tree').innerHTML = treeHTML;
+        }
+        
+        // Handle Create Rule form submission
+        document.getElementById('create-rule-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const ruleName = document.getElementById('ruleName').value;
+            const ruleString = document.getElementById('ruleString').value;
+            const response = await fetch('/api/rules/create_rule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ruleName, ruleString }),
+            });
+            const result = await response.json();
+            document.getElementById('create-rule-result').textContent = JSON.stringify(result, null, 2);
+            // document.getElementById('create-rule-result').textContent = JSON.stringify(result, null, 2);
+            let treeHTML = generateTreeHTML(result.ruleAST);
+            treeHTML += `<br><p>Rule Name: ${result.ruleName}</p>`;
+            document.getElementById('create-rule-result').innerHTML = treeHTML;
+            // displayTree();
+            // console.log(result);
+        });
+
+        // Handle Combine Rules form submission
+        document.getElementById('combine-rules-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const op=document.getElementById('operator1').value;
+            // console.log(op);
+            const rules = Array.from(document.querySelectorAll('input[id^="combine-rule"]')).map(input => input.value);
+            const response = await fetch('/api/rules/combine_rules', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ rules ,op}),
+            });
+            const result = await response.json();
+            document.getElementById('combine-rules-result').textContent = JSON.stringify(result, null, 2);
+            // document.getElementById('combine-rules-result').textContent = JSON.stringify(result, null, 2);
+            // displayTree(result.ruleAST);
+            let treeHTML = generateTreeHTML(result.ruleAST);
+            treeHTML += `<br><p>Rule Name: ${result.ruleName}</p>`;
+            document.getElementById('combine-rules-result').innerHTML = treeHTML;
+        });
